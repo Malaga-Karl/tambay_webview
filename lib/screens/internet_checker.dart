@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:tambay_webview/screens/no_internet_screen.dart';
+import 'package:http/http.dart' as http;
 
 class ConnectionChecker extends StatefulWidget {
   const ConnectionChecker({super.key});
@@ -16,27 +17,72 @@ class _ConnectionCheckerState extends State<ConnectionChecker> {
   bool hasInternet = false;
   late final WebViewController _controller;
   bool _webViewInitialized = false;
+  bool pageReachable = false;
+
+  Future<bool> _showExitConfirmationDialog(BuildContext context) async {
+    return await showDialog<bool>(
+          context: context,
+          builder:
+              (context) => AlertDialog(
+                title: const Text('Exit App?'),
+                content: const Text('Are you sure you want to exit the app?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: const Text('No'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    child: const Text('Yes'),
+                  ),
+                ],
+              ),
+        ) ??
+        false;
+  }
 
   @override
   void initState() {
     super.initState();
     _controller =
-        WebViewController()
-          ..setJavaScriptMode(JavaScriptMode.unrestricted)
-          ..loadRequest(Uri.parse('https://tambay.co'));
+        WebViewController()..setJavaScriptMode(JavaScriptMode.unrestricted);
     _checkConnection();
     subscription = Connectivity().onConnectivityChanged.listen((results) {
       final connected = results.any(
         (result) => result != ConnectivityResult.none,
       );
-      if (connected && !hasInternet && _webViewInitialized) {
-        // If internet is restored, reload the page
-        _controller.reload();
-      }
       setState(() {
         hasInternet = connected;
       });
+      if (connected) {
+        _checkPageReachable(reload: !pageReachable);
+      } else {
+        setState(() {
+          pageReachable = false;
+        });
+      }
     });
+  }
+
+  Future<void> _checkPageReachable({bool reload = false}) async {
+    setState(() {
+      pageReachable = false;
+    });
+    try {
+      final response = await http.get(Uri.parse('https://tambay.co'));
+      if (response.statusCode == 200) {
+        setState(() {
+          pageReachable = true;
+        });
+        if (reload) {
+          _controller.loadRequest(Uri.parse('https://tambay.co'));
+        }
+      }
+    } catch (_) {
+      setState(() {
+        pageReachable = false;
+      });
+    }
   }
 
   Future<void> _checkConnection() async {
@@ -55,8 +101,14 @@ class _ConnectionCheckerState extends State<ConnectionChecker> {
   @override
   Widget build(BuildContext context) {
     if (hasInternet) {
-      return Scaffold(
-        body: SafeArea(child: WebViewWidget(controller: _controller)),
+      return WillPopScope(
+        onWillPop: () async {
+          final confirmExit = await _showExitConfirmationDialog(context);
+          return confirmExit; // true = pop, false = stay
+        },
+        child: Scaffold(
+          body: SafeArea(child: WebViewWidget(controller: _controller)),
+        ),
       );
     } else {
       return const NoInternetScreen();
