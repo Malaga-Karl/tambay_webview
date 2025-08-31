@@ -50,9 +50,15 @@ android {
 
     buildTypes {
         getByName("release") {
+
         signingConfig = signingConfigs.getByName("release")
-        isMinifyEnabled = true
-        isShrinkResources = true
+        isMinifyEnabled = false
+        isShrinkResources = false
+        isDebuggable = false
+        ndk {
+                // Strips out debug symbols
+                debugSymbolLevel = "none"
+            }
         proguardFiles(
             getDefaultProguardFile("proguard-android-optimize.txt"),
             "proguard-rules.pro"
