@@ -15,8 +15,8 @@ class ConnectionChecker extends StatefulWidget {
 class _ConnectionCheckerState extends State<ConnectionChecker> {
   late final StreamSubscription<List<ConnectivityResult>> subscription;
   bool hasInternet = false;
-  late final WebViewController _controller;
-  bool _webViewInitialized = false;
+  // late final WebViewController _controller;   // 👈 commented out, we won't init WebView
+  // bool _webViewInitialized = false;          // 👈 not needed for now
   bool pageReachable = false;
 
   Future<bool> _showExitConfirmationDialog(BuildContext context) async {
@@ -44,9 +44,16 @@ class _ConnectionCheckerState extends State<ConnectionChecker> {
   @override
   void initState() {
     super.initState();
-    _controller =
-        WebViewController()..setJavaScriptMode(JavaScriptMode.unrestricted);
+
+    // _controller =
+    //     WebViewController()
+    //       ..setJavaScriptMode(JavaScriptMode.unrestricted)
+    //       ..loadRequest(
+    //         Uri.parse('https://tambay.co'),
+    //       ); // 👈 commented out, don't load site immediately
+
     _checkConnection();
+
     subscription = Connectivity().onConnectivityChanged.listen((results) {
       final connected = results.any(
         (result) => result != ConnectivityResult.none,
@@ -55,7 +62,7 @@ class _ConnectionCheckerState extends State<ConnectionChecker> {
         hasInternet = connected;
       });
       if (connected) {
-        _checkPageReachable(reload: !pageReachable);
+        _checkPageReachable();
       } else {
         setState(() {
           pageReachable = false;
@@ -64,7 +71,7 @@ class _ConnectionCheckerState extends State<ConnectionChecker> {
     });
   }
 
-  Future<void> _checkPageReachable({bool reload = false}) async {
+  Future<void> _checkPageReachable() async {
     setState(() {
       pageReachable = false;
     });
@@ -74,9 +81,9 @@ class _ConnectionCheckerState extends State<ConnectionChecker> {
         setState(() {
           pageReachable = true;
         });
-        if (reload) {
-          _controller.loadRequest(Uri.parse('https://tambay.co'));
-        }
+        // if (reload) {
+        //   _controller.loadRequest(Uri.parse('https://tambay.co'));
+        // }  // 👈 no reload for now
       }
     } catch (_) {
       setState(() {
@@ -90,6 +97,10 @@ class _ConnectionCheckerState extends State<ConnectionChecker> {
     setState(() {
       hasInternet = results.any((result) => result != ConnectivityResult.none);
     });
+
+    if (hasInternet) {
+      _checkPageReachable();
+    }
   }
 
   @override
@@ -104,10 +115,21 @@ class _ConnectionCheckerState extends State<ConnectionChecker> {
       return WillPopScope(
         onWillPop: () async {
           final confirmExit = await _showExitConfirmationDialog(context);
-          return confirmExit; // true = pop, false = stay
+          return confirmExit;
         },
         child: Scaffold(
-          body: SafeArea(child: WebViewWidget(controller: _controller)),
+          body: SafeArea(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text("Internet connection: ✅"),
+                  Text("Shopify reachable: ${pageReachable ? "✅" : "❌"}"),
+                  // Expanded(child: WebViewWidget(controller: _controller)), // 👈 commented out
+                ],
+              ),
+            ),
+          ),
         ),
       );
     } else {

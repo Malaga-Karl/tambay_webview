@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:tambay_webview/screens/infoscreen.dart';
 import 'package:tambay_webview/screens/internet_checker.dart';
+import 'package:tambay_webview/screens/webview_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,7 +31,9 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
       initialRoute: '/',
-      routes: {'/': (context) => const ConnectionChecker()},
+      // routes: {'/': (context) => const ConnectionChecker()},
+      // routes: {'/': (context) => const WebViewScreen()},
+      routes: {'/': (context) => const Infoscreen()},
     );
   }
 }
