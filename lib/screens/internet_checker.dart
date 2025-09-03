@@ -4,6 +4,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:tambay_webview/screens/no_internet_screen.dart';
 import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 
 class ConnectionChecker extends StatefulWidget {
   const ConnectionChecker({super.key});
@@ -15,8 +16,7 @@ class ConnectionChecker extends StatefulWidget {
 class _ConnectionCheckerState extends State<ConnectionChecker> {
   late final StreamSubscription<List<ConnectivityResult>> subscription;
   bool hasInternet = false;
-  // late final WebViewController _controller;   // 👈 commented out, we won't init WebView
-  // bool _webViewInitialized = false;          // 👈 not needed for now
+  late final WebViewController _controller;
   bool pageReachable = false;
 
   Future<bool> _showExitConfirmationDialog(BuildContext context) async {
@@ -45,12 +45,10 @@ class _ConnectionCheckerState extends State<ConnectionChecker> {
   void initState() {
     super.initState();
 
-    // _controller =
-    //     WebViewController()
-    //       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-    //       ..loadRequest(
-    //         Uri.parse('https://tambay.co'),
-    //       ); // 👈 commented out, don't load site immediately
+    _controller =
+        WebViewController()
+          ..setJavaScriptMode(JavaScriptMode.unrestricted)
+          ..loadRequest(Uri.parse('https://tambay.co'));
 
     _checkConnection();
 
@@ -61,8 +59,9 @@ class _ConnectionCheckerState extends State<ConnectionChecker> {
       setState(() {
         hasInternet = connected;
       });
+
       if (connected) {
-        _checkPageReachable();
+        _checkPageReachable(reload: !pageReachable);
       } else {
         setState(() {
           pageReachable = false;
@@ -71,7 +70,7 @@ class _ConnectionCheckerState extends State<ConnectionChecker> {
     });
   }
 
-  Future<void> _checkPageReachable() async {
+  Future<void> _checkPageReachable({bool reload = false}) async {
     setState(() {
       pageReachable = false;
     });
@@ -81,9 +80,9 @@ class _ConnectionCheckerState extends State<ConnectionChecker> {
         setState(() {
           pageReachable = true;
         });
-        // if (reload) {
-        //   _controller.loadRequest(Uri.parse('https://tambay.co'));
-        // }  // 👈 no reload for now
+        if (reload) {
+          _controller.loadRequest(Uri.parse('https://tambay.co'));
+        }
       }
     } catch (_) {
       setState(() {
@@ -97,10 +96,6 @@ class _ConnectionCheckerState extends State<ConnectionChecker> {
     setState(() {
       hasInternet = results.any((result) => result != ConnectivityResult.none);
     });
-
-    if (hasInternet) {
-      _checkPageReachable();
-    }
   }
 
   @override
@@ -114,22 +109,18 @@ class _ConnectionCheckerState extends State<ConnectionChecker> {
     if (hasInternet) {
       return WillPopScope(
         onWillPop: () async {
-          final confirmExit = await _showExitConfirmationDialog(context);
-          return confirmExit;
+          if (await _controller.canGoBack()) {
+            // Go back inside WebView history
+            _controller.goBack();
+            return false; // don’t exit app
+          } else {
+            // Show exit confirmation if no history left
+            final confirmExit = await _showExitConfirmationDialog(context);
+            return confirmExit; // true = exit
+          }
         },
         child: Scaffold(
-          body: SafeArea(
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text("Internet connection: ✅"),
-                  Text("Shopify reachable: ${pageReachable ? "✅" : "❌"}"),
-                  // Expanded(child: WebViewWidget(controller: _controller)), // 👈 commented out
-                ],
-              ),
-            ),
-          ),
+          body: SafeArea(child: WebViewWidget(controller: _controller)),
         ),
       );
     } else {

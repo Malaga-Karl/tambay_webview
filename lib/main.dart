@@ -31,9 +31,9 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
       initialRoute: '/',
-      // routes: {'/': (context) => const ConnectionChecker()},
+      routes: {'/': (context) => const ConnectionChecker()},
       // routes: {'/': (context) => const WebViewScreen()},
-      routes: {'/': (context) => const Infoscreen()},
+      // routes: {'/': (context) => const Infoscreen()},
     );
   }
 }
